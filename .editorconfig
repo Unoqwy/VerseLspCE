@@ -1,0 +1,11 @@
+root = false
+
+[*]
+indent_style = space
+indent_size = 4
+
+[*.cs]
+indent_style = tab
+
+[*.verse]
+indent_style = tab

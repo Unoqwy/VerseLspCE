@@ -13,6 +13,7 @@ mod ffi;
 mod notifications;
 mod requests;
 mod server;
+pub mod utils;
 mod verse;
 mod vproject;
 

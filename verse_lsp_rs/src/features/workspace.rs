@@ -11,7 +11,8 @@ use lsp_types::{
     WorkspaceFolder, WorkspaceFoldersServerCapabilities, WorkspaceServerCapabilities,
 };
 
-use crate::server::{LanguageServer, walk_files};
+use crate::server::LanguageServer;
+use crate::utils;
 use crate::verse::{ProjectContainer, SourcePackage};
 use crate::vproject::VProjectFile;
 
@@ -92,20 +93,11 @@ impl LanguageServer {
     }
 
     fn find_vproject_files(&self, workspace_folder: &WorkspaceFolder) -> Vec<PathBuf> {
-        let Ok(path) = workspace_folder.uri.to_file_path() else {
-            return vec![];
-        };
-
-        let mut result_paths = vec![];
-        walk_files(&path, |dir_entry| {
-            let Some(extension) = dir_entry.path().extension().and_then(|s| s.to_str()) else {
-                return;
-            };
-            if extension.eq("vproject") {
-                result_paths.push(dir_entry.path().to_owned());
-            }
-        });
-        result_paths
+        if let Ok(path) = workspace_folder.uri.to_file_path() {
+            utils::collect_files_with_extension(&path, "vproject")
+        } else {
+            vec![]
+        }
     }
 
     fn register_project_container(

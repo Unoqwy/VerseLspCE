@@ -83,7 +83,7 @@ pub fn main() -> Result<(), Box<dyn Error + Sync + Send>> {
 
     let server = Arc::new(Mutex::new(server));
     for msg in &connection.receiver {
-        eprintln!("Received: {msg:?}");
+        log::debug!("Received: {msg:?}");
         match msg {
             Message::Request(req) => {
                 if connection.handle_shutdown(&req)? {

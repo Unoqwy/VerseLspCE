@@ -7,7 +7,7 @@ use std::{
 use fxhash::FxHashMap;
 use lsp_types::{Diagnostic, Url, WorkspaceFolder};
 
-use crate::{ffi, server::walk_files, vproject::VProjectFile};
+use crate::{ffi, profile, utils, vproject::VProjectFile};
 
 #[derive(Debug)]
 pub struct CProjectContainer(pub *const ffi::LspProjectContainer);
@@ -53,7 +53,11 @@ impl ProjectContainer {
         let mut diagnostic_acc = DiagnosticAccumulator {
             diagnostics: FxHashMap::default(),
         };
-        crate::build(&self.c_container, &mut diagnostic_acc);
+
+        profile! {
+            format!("Build project {:?}", &self.vproject_path),
+            crate::build(&self.c_container, &mut diagnostic_acc);
+        };
 
         let mut stale_diagnostic_uris = HashSet::with_capacity(self.diagnostics.len());
         stale_diagnostic_uris.extend(self.diagnostics.keys().cloned());
@@ -66,33 +70,30 @@ impl ProjectContainer {
 
     pub fn load_files_from_disk(&mut self) {
         for package in self.packages.iter() {
-            self.load_package_files_from_disk(package);
+            profile! {
+                format!("Read package {} files from disk", &package.name),
+                self.load_package_files_from_disk(package);
+            };
         }
     }
 
     fn load_package_files_from_disk(&self, package: &SourcePackage) {
-        walk_files(&package.dir_path, |dir_entry| {
-            let Some(extension) = dir_entry.path().extension().and_then(|s| s.to_str()) else {
-                return;
-            };
+        let verse_file_paths = utils::collect_files_with_extension(&package.dir_path, "verse");
 
-            if !extension.eq("verse") {
-                return;
-            }
-
-            let Ok(path) = dir_entry.path().canonicalize() else {
-                return;
+        for path in verse_file_paths {
+            let Ok(path) = path.canonicalize() else {
+                continue;
             };
 
             let contents = match fs::read_to_string(&path) {
                 Ok(contents) => contents,
                 Err(err) => {
-                    log::error!("Unable to read file \"{path:?}\": {err}");
-                    return;
+                    log::error!("Unable to read snippet file \"{path:?}\": {err}");
+                    continue;
                 }
             };
             self.update_source(package, &path, &contents);
-        });
+        }
     }
 
     pub fn update_source(&self, package: &SourcePackage, path: &Path, contents: &str) {
