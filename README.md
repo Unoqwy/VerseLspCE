@@ -51,9 +51,10 @@ The [Unreal® Engine EULA](https://www.unrealengine.com/en-US/eula/unreal) is ap
 A convenient way to debug is to start the server in TCP mode through `gdb`.
 
 ```bash
+# prefer Development over Debug most of the time because of the big latency overhead of Debug
 ./Engine/Build/BatchFiles/RunUBT.sh -Mode=Build VerseLspCE Linux Development
 
-gdb --args ./Engine/Binaries/Linux/VerseLspCE --tcp 127.0.0.1:9010
+RUST_LOG=debug gdb --args ./Engine/Binaries/Linux/VerseLspCE --tcp 127.0.0.1:9010
 ```
 
 Then configure the client to connect to that address. Example for neovim 0.11+:

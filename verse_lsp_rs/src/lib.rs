@@ -3,7 +3,7 @@
 use std::ffi::{CStr, CString, c_char};
 
 use crate::verse::{CProjectContainer, CSourcePackage, DiagnosticAccumulator};
-use lsp_types::{Diagnostic, DiagnosticSeverity, Position, Range, Url};
+use lsp_types::{Diagnostic, DiagnosticSeverity, NumberOrString, Position, Range, Url};
 
 use simple_logger::SimpleLogger;
 
@@ -41,11 +41,15 @@ pub extern "C" fn RS_AddDiagnostic(acc: *mut DiagnosticAccumulator, diagnostic: 
     let path = unsafe { CStr::from_ptr(diagnostic.path) }
         .to_string_lossy()
         .into_owned();
-    let path = match Url::from_file_path(&path) {
-        Ok(path) => path,
-        Err(_) => {
-            log::error!("Couldn't convert path \"{path}\" to Url");
-            return;
+    let path = if path.is_empty() {
+        None
+    } else {
+        match Url::from_file_path(&path) {
+            Ok(path) => Some(path),
+            Err(_) => {
+                log::error!("Couldn't convert path \"{path}\" to Url");
+                return;
+            }
         }
     };
 
@@ -64,19 +68,36 @@ pub extern "C" fn RS_AddDiagnostic(acc: *mut DiagnosticAccumulator, diagnostic: 
             3 => DiagnosticSeverity::INFORMATION,
             _ => unimplemented!("Diagnostic severity code"),
         }),
+        code: if diagnostic.reference_code > 0 {
+            Some(NumberOrString::Number(diagnostic.reference_code as _))
+        } else {
+            None
+        },
+        source: Some("VerseCompiler".to_owned()),
         message,
         ..Default::default()
     };
-    acc.diagnostics
-        .entry(path)
-        .or_insert_with(|| vec![])
-        .push(diagnostic);
+
+    if let Some(path) = path {
+        acc.diagnostics
+            .entry(path)
+            .or_insert_with(|| vec![])
+            .push(diagnostic);
+    } else {
+        acc.global_diagnostics.push(diagnostic);
+    }
 }
 
 pub fn register_project_container(project_name: &str) -> CProjectContainer {
     let c_project_name = CString::new(project_name).unwrap();
     let ptr = unsafe { ffi::Lsp_RegisterProjectContainer(c_project_name.as_ptr()) };
     CProjectContainer(ptr)
+}
+
+pub fn build(project_container: &CProjectContainer, diagnostics: &mut DiagnosticAccumulator) {
+    unsafe {
+        ffi::Lsp_Build(project_container.0, diagnostics);
+    }
 }
 
 pub fn register_package(
@@ -108,11 +129,8 @@ pub fn register_package(
         verse_path: s_verse_path.as_ptr(),
         verse_scope: settings.verse_scope as u8,
         role: settings.role as u8,
-        verse_version: if let Some(value) = settings.verse_version {
-            &value as *const u32
-        } else {
-            std::ptr::null()
-        },
+        explicit_verse_version: settings.verse_version.is_some(),
+        verse_version: settings.verse_version.unwrap_or(0),
         treat_modules_as_implicit: settings.treat_modules_as_implicit,
         dependency_packages: c_dependency_packages.as_ptr(),
         dependency_packages_len: settings.dependency_packages.len(),
@@ -160,8 +178,9 @@ pub fn upsert_source(
     };
 }
 
-pub fn build(project_container: &CProjectContainer, diagnostics: &mut DiagnosticAccumulator) {
+pub fn symbol_info(project_container: &CProjectContainer, package: &CSourcePackage, path: &str) {
+    let c_path = CString::new(path).unwrap();
     unsafe {
-        ffi::Lsp_Build(project_container.0, diagnostics);
-    }
+        ffi::Lsp_SymbolInfo(project_container.0, package.0, c_path.as_ptr());
+    };
 }

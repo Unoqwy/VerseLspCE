@@ -9,6 +9,7 @@ pub struct LspProjectContainer(c_void);
 pub struct SDiagnostic {
     pub path: *const c_char,
     pub message: *const c_char,
+    pub reference_code: u16,
     pub severity: i32,
     pub begin_row: u32,
     pub begin_col: u32,
@@ -24,7 +25,8 @@ pub struct SPackageSettings {
     pub verse_path: *const c_char,
     pub verse_scope: u8,
     pub role: u8,
-    pub verse_version: *const u32,
+    pub explicit_verse_version: bool,
+    pub verse_version: u32,
     pub treat_modules_as_implicit: bool,
     pub dependency_packages: *const *const c_char,
     pub dependency_packages_len: usize,
@@ -35,10 +37,10 @@ pub struct SPackageSettings {
 unsafe extern "C" {
     #![allow(improper_ctypes)]
 
-    pub fn Lsp_RegisterProjectContainer(project_name: *const c_char) -> *const LspProjectContainer;
+    pub fn Lsp_RegisterProjectContainer(project_name: *const c_char) -> *mut LspProjectContainer;
 
     pub fn Lsp_Build(
-        project_container: *const LspProjectContainer,
+        project_container: *mut LspProjectContainer,
         diagnostics: *mut DiagnosticAccumulator,
     );
 
@@ -57,5 +59,11 @@ unsafe extern "C" {
         path: *const c_char,
         module_path_to_root: *const c_char,
         contents: *const c_char,
+    );
+
+    pub fn Lsp_SymbolInfo(
+        project_container: *mut LspProjectContainer,
+        package: *const SPackage,
+        path: *const c_char,
     );
 }

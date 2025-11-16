@@ -2,7 +2,6 @@ use lsp_server::{ErrorCode, Response, ResponseError};
 
 use lsp_types::request::Request as _;
 use lsp_types::request::*;
-use lsp_types::*;
 
 use crate::server::LanguageServer;
 
@@ -39,17 +38,6 @@ impl LanguageServer {
             },
         };
         Ok(Some(resp))
-    }
-
-    fn handle_req_semantic_tokens_full(
-        &mut self,
-        _params: SemanticTokensParams,
-    ) -> Result<SemanticTokensFullDeltaResult, ResponseError> {
-        // TODO:
-        Ok(SemanticTokensFullDeltaResult::Tokens(SemanticTokens {
-            result_id: None,
-            data: vec![],
-        }))
     }
 }
 

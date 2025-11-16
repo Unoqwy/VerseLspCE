@@ -9,6 +9,7 @@ extern "C" {
     struct RsDiagnostic {
         const char* _Path;
         const char* _Message;
+        uint16_t _ReferenceCode;
         int32_t _Severity;
         uint32_t _BeginRow;
         uint32_t _BeginColumn;

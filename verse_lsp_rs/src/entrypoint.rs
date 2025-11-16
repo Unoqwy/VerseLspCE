@@ -11,7 +11,12 @@ use lsp_types::{
     ServerInfo, TextDocumentSyncCapability, TextDocumentSyncKind, WorkspaceFoldersChangeEvent,
 };
 
-use crate::{features::workspace::capabilities_workspace_folders, server::LanguageServer};
+use crate::{
+    features::{
+        semantic_tokens::capabilities_semantic_tokens, workspace::capabilities_workspace_folders,
+    },
+    server::LanguageServer,
+};
 
 #[derive(clap::Parser)]
 struct Cli {
@@ -45,7 +50,7 @@ pub fn main() -> Result<(), Box<dyn Error + Sync + Send>> {
         text_document_sync: Some(TextDocumentSyncCapability::Kind(TextDocumentSyncKind::FULL)),
         definition_provider: Some(OneOf::Left(true)),
         // document_symbol_provider: Some(OneOf::Left(true)),
-        // semantic_tokens_provider: Some(capabilities_semantic_tokens()),
+        semantic_tokens_provider: Some(capabilities_semantic_tokens()),
         // hover_provider: Some(HoverProviderCapability::Simple(true)),
         workspace: Some(capabilities_workspace_folders()),
         // workspace_symbol_provider: Some(OneOf::Left(true)),

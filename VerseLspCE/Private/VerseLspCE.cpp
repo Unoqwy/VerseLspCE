@@ -29,7 +29,7 @@ int main(int ArgC, char* ArgV[]) {
     return 0;
 }
 
-extern "C" const LspProjectContainer* Lsp_RegisterProjectContainer(
+extern "C" LspProjectContainer* Lsp_RegisterProjectContainer(
     const char* ProjectName
 ) {
     SBuildManagerParams ManagerParams;
@@ -51,8 +51,9 @@ extern "C" const LspProjectContainer* Lsp_RegisterProjectContainer(
     return ProjectContainer;
 }
 
+
 extern "C" void Lsp_Build(
-    const LspProjectContainer* ProjectContainer,
+    LspProjectContainer* ProjectContainer,
     RsDiagnosticAccumulator* DiagnosticAccumulator
 ) {
     const auto Diagnostics = TSRef<CDiagnostics>::New();
@@ -70,21 +71,35 @@ extern "C" void Lsp_Build(
     BuildContext.bCloneValidSnippetVsts = true;
 
     CProgramBuildManager& BuildManager = ProjectContainer->_BuildManager;
+
     BuildManager.ResetSemanticProgram();
-    BuildManager.GetToolchain()->BuildProject(
+    SBuildResults BuildResult = BuildManager.GetToolchain()->BuildProject(
             *BuildManager.GetSourceProject(), BuildContext, BuildManager.GetProgramContext());
+
+    // FIXME: This _AstProject field on BuildResult is patched into UE source code.
+    //        I would like to do without it to avoid using a custom fork, but there is a strange memory issue I can't figure out.
+    //        All that is added is `BuildResult._AstProject = ProgramContext._Program->_AstProject` at the very end of BuildProject.
+    //        Trying to do the same thing outside BuildProject suddenly doesn't work because the TSPtr itself has a corrupted memory address.
+    //        (ProgramContext._Program is valid and pointing to the same object)
+    //        The odd part is, ~CSemanticProgram (destructor) sees the correct TSPtr address, but not any other call.
+    //        This patch is a hack after I spent way too much time trying to figure out the true issue...
+    //        Welcome to the madness. Grab a drink!
+    //        This shit wouldn't happen if VerseCompiler was written in Rust, just saying.
+    //        Note: Still safe to keep in memory despite everything.
+    ProjectContainer->_LastAstProject = BuildResult._AstProject;
 
     for (const auto& Glitch : Diagnostics->GetGlitches()) {
         auto Range = Glitch->_Locus._Range;
+        auto GlitchInfo = Glitch->_Result.GetInfo();
         RsDiagnostic Diagnostic = {
             ._Path = Glitch->_Locus._SnippetPath.AsCString(),
             ._Message = Glitch->_Result._Message.AsCString(),
+            ._ReferenceCode = GlitchInfo.ReferenceCode,
             ._BeginRow = Range.BeginRow(),
             ._BeginColumn = Range.BeginColumn(),
             ._EndRow = Range.EndRow(),
             ._EndColumn = Range.EndColumn(),
         };
-        auto GlitchInfo = Glitch->_Result.GetInfo();
 
         int32_t SeverityCode = 0;
         switch (GlitchInfo.Severity) {

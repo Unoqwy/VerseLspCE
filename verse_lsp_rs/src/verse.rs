@@ -10,15 +10,15 @@ use lsp_types::{Diagnostic, Url, WorkspaceFolder};
 use crate::{ffi, profile, utils, vproject::VProjectFile};
 
 #[derive(Debug)]
-pub struct CProjectContainer(pub *const ffi::LspProjectContainer);
+pub struct CProjectContainer(pub *mut ffi::LspProjectContainer);
 
 /// Contains all LSP data about a Verse project bound to a .vproject file.
 #[derive(Debug)]
 pub struct ProjectContainer {
     /// The workspace `vproject_path` originates from.
     pub workspace_folder: WorkspaceFolder,
-    /// .vproject file path.
-    pub vproject_path: PathBuf,
+    /// .vproject file uri.
+    pub vproject_uri: Url,
     /// Parsed .vproject file.
     pub vproject_file: VProjectFile,
 
@@ -45,17 +45,21 @@ pub struct SourcePackage {
 }
 
 pub struct DiagnosticAccumulator {
+    /// Diagnostics to report as coming from .vproject file.
+    pub global_diagnostics: Vec<Diagnostic>,
+    /// Diagnostics bound to URIs.
     pub diagnostics: FxHashMap<Url, Vec<Diagnostic>>,
 }
 
 impl ProjectContainer {
     pub fn build(&mut self) {
         let mut diagnostic_acc = DiagnosticAccumulator {
+            global_diagnostics: vec![],
             diagnostics: FxHashMap::default(),
         };
 
         profile! {
-            format!("Build project {:?}", &self.vproject_path),
+            format!("Build project {}", &self.vproject_uri.as_str()),
             crate::build(&self.c_container, &mut diagnostic_acc);
         };
 
@@ -63,6 +67,13 @@ impl ProjectContainer {
         stale_diagnostic_uris.extend(self.diagnostics.keys().cloned());
 
         self.diagnostics = diagnostic_acc.diagnostics;
+
+        if !diagnostic_acc.global_diagnostics.is_empty() {
+            self.diagnostics
+                .entry(self.vproject_uri.clone())
+                .or_insert_with(|| vec![])
+                .extend(diagnostic_acc.global_diagnostics);
+        }
 
         stale_diagnostic_uris.retain(|uri| !self.diagnostics.contains_key(&uri));
         self.stale_diagnostic_uris.extend(stale_diagnostic_uris);

@@ -1,7 +1,9 @@
-use std::sync::Arc;
+use std::{path::PathBuf, sync::Arc};
 
 use lsp_server::Connection;
-use lsp_types::WorkspaceFolder;
+use lsp_types::{Url, WorkspaceFolder};
+
+use anyhow::anyhow;
 
 use crate::verse::ProjectContainer;
 
@@ -21,5 +23,13 @@ impl LanguageServer {
             workspace_folders: vec![],
             project_containers: vec![],
         }
+    }
+
+    #[inline]
+    pub fn uri_to_file_path(&self, uri: &Url) -> anyhow::Result<PathBuf> {
+        uri.to_file_path()
+            .map_err(|_| anyhow!("Text document URI couldn't be mapped to file path: {uri}"))?
+            .canonicalize()
+            .map_err(|err| err.into())
     }
 }

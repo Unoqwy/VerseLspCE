@@ -8,7 +8,7 @@ use lsp_server::{Message, Notification};
 use lsp_types::notification::{Notification as _, PublishDiagnostics};
 use lsp_types::{
     DidChangeTextDocumentParams, DidChangeWorkspaceFoldersParams, OneOf, PublishDiagnosticsParams,
-    WorkspaceFolder, WorkspaceFoldersServerCapabilities, WorkspaceServerCapabilities,
+    Url, WorkspaceFolder, WorkspaceFoldersServerCapabilities, WorkspaceServerCapabilities,
 };
 
 use crate::server::LanguageServer;
@@ -62,12 +62,7 @@ impl LanguageServer {
         &mut self,
         params: DidChangeTextDocumentParams,
     ) -> anyhow::Result<()> {
-        let path = params
-            .text_document
-            .uri
-            .to_file_path()
-            .map_err(|_| anyhow!("Text document URI couldn't be mapped to file path"))?
-            .canonicalize()?;
+        let path = self.uri_to_file_path(&params.text_document.uri)?;
 
         let contents = params
             .content_changes
@@ -105,6 +100,11 @@ impl LanguageServer {
         vproject_path: PathBuf,
         workspace_folder: WorkspaceFolder,
     ) {
+        let Ok(vproject_uri) = Url::from_file_path(&vproject_path) else {
+            log::error!("Unable to turn .vproject file path to URI: {vproject_path:?}");
+            return;
+        };
+
         let read_vproject_file = || -> anyhow::Result<VProjectFile> {
             let contents = fs::read_to_string(&vproject_path)?;
             let vproject_file: VProjectFile = serde_json::from_str(&contents)?;
@@ -144,7 +144,7 @@ impl LanguageServer {
 
         let project_container = ProjectContainer {
             workspace_folder,
-            vproject_path,
+            vproject_uri,
             vproject_file,
             c_container,
             packages,

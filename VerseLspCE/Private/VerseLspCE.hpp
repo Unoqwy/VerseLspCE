@@ -14,6 +14,7 @@ using namespace uLang;
 struct LspProjectContainer {
     CProgramBuildManager& _BuildManager;
     TSRef<CSourceProject> _Project;
+    TSPtr<CAstProject> _LastAstProject;
 };
 
 } // namespace Verse::LspCE

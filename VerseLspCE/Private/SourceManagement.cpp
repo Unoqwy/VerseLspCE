@@ -1,4 +1,5 @@
 #include "VerseLspCE.hpp"
+
 #include "uLang/Common/Text/FilePathUtils.h"
 #include "uLang/Common/Text/UTF8String.h"
 #include "uLang/SourceProject/PackageRole.h"
@@ -32,7 +33,8 @@ struct FFI_PackageSettings {
     char* _VersePath;
     EVerseScope _VerseScope;
     EPackageRole _Role;
-    uint32_t* _VerseVersion;
+    bool _ExplicitVerseVersion;
+    uint32_t _VerseVersion;
     bool _bTreatModulesAsImplicit;
     char** _DependencyPackages;
     size_t _DependencyPackagesLen;
@@ -60,8 +62,8 @@ extern "C" const CSourceProject::SPackage* Lsp_RegisterPackage(
         ._DependencyPackages = DependencyPackages,
         ._bAllowExperimental = Settings._bAllowExperimental,
     };
-    if (Settings._VerseVersion) {
-        PackageSettings._VerseVersion = uLang::TOptional(*Settings._VerseVersion);
+    if (Settings._ExplicitVerseVersion) {
+        PackageSettings._VerseVersion = uLang::TOptional(Settings._VerseVersion);
     }
     if (Settings._VniDestDir) {
         PackageSettings._VniDestDir = uLang::TOptional(CUTF8String(Settings._VniDestDir));
