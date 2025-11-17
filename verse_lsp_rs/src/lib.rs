@@ -2,7 +2,10 @@
 
 use std::ffi::{CStr, CString, c_char};
 
-use crate::verse::{CProjectContainer, CSourcePackage, DiagnosticAccumulator};
+use crate::{
+    features::semantic_tokens::{SemanticTokenEntry, SemanticTokensAccumulator},
+    verse::{CProjectContainer, CSourcePackage, DiagnosticAccumulator},
+};
 use lsp_types::{Diagnostic, DiagnosticSeverity, NumberOrString, Position, Range, Url};
 
 use simple_logger::SimpleLogger;
@@ -47,7 +50,7 @@ pub extern "C" fn RS_AddDiagnostic(acc: *mut DiagnosticAccumulator, diagnostic: 
         match Url::from_file_path(&path) {
             Ok(path) => Some(path),
             Err(_) => {
-                log::error!("Couldn't convert path \"{path}\" to Url");
+                log::error!("Couldn't convert path \"{path}\" to url");
                 return;
             }
         }
@@ -57,10 +60,11 @@ pub extern "C" fn RS_AddDiagnostic(acc: *mut DiagnosticAccumulator, diagnostic: 
         .to_string_lossy()
         .into_owned();
 
+    let span = diagnostic.span;
     let diagnostic = Diagnostic {
         range: Range::new(
-            Position::new(diagnostic.begin_row, diagnostic.begin_col),
-            Position::new(diagnostic.end_row, diagnostic.end_col),
+            Position::new(span.begin_row, span.begin_col),
+            Position::new(span.end_row, span.end_col),
         ),
         severity: Some(match diagnostic.severity {
             1 => DiagnosticSeverity::ERROR,
@@ -86,6 +90,16 @@ pub extern "C" fn RS_AddDiagnostic(acc: *mut DiagnosticAccumulator, diagnostic: 
     } else {
         acc.global_diagnostics.push(diagnostic);
     }
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn RS_AddSemanticToken(
+    acc: *mut SemanticTokensAccumulator,
+    token_entry: SemanticTokenEntry,
+) {
+    let acc = unsafe { &mut *acc };
+
+    acc.token_entries.push(token_entry);
 }
 
 pub fn register_project_container(project_name: &str) -> CProjectContainer {
@@ -178,9 +192,19 @@ pub fn upsert_source(
     };
 }
 
-pub fn symbol_info(project_container: &CProjectContainer, package: &CSourcePackage, path: &str) {
+pub fn get_semantic_tokens(
+    project_container: &CProjectContainer,
+    package: &CSourcePackage,
+    path: &str,
+    semantic_tokens: &mut SemanticTokensAccumulator,
+) {
     let c_path = CString::new(path).unwrap();
     unsafe {
-        ffi::Lsp_SymbolInfo(project_container.0, package.0, c_path.as_ptr());
+        ffi::Lsp_SemanticTokens(
+            project_container.0,
+            package.0,
+            c_path.as_ptr(),
+            semantic_tokens,
+        );
     };
 }

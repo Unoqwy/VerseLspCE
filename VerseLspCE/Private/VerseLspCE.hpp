@@ -6,16 +6,18 @@
 #include "uLang/Toolchain/ProgramBuildManager.h"
 
 
-namespace Verse::LspCE
-{
+namespace Verse::LspCE {
+
+#include "verse_lsp_rs.h"
 
 using namespace uLang;
 
 struct LspProjectContainer {
     CProgramBuildManager& _BuildManager;
     TSRef<CSourceProject> _Project;
-    TSPtr<CAstProject> _LastAstProject;
 };
+
+RsSourceSpan TextRangeToSpan(STextRange Range);
 
 } // namespace Verse::LspCE
 

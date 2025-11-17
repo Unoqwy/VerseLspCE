@@ -1,21 +1,18 @@
 use std::ffi::{c_char, c_void};
 
-use crate::verse::DiagnosticAccumulator;
+use crate::{features::semantic_tokens::SemanticTokensAccumulator, verse::DiagnosticAccumulator};
 
 #[repr(C)]
-pub struct LspProjectContainer(c_void);
-
-#[repr(C)]
-pub struct SDiagnostic {
-    pub path: *const c_char,
-    pub message: *const c_char,
-    pub reference_code: u16,
-    pub severity: i32,
+#[derive(Debug)]
+pub struct SSourceSpan {
     pub begin_row: u32,
     pub begin_col: u32,
     pub end_row: u32,
     pub end_col: u32,
 }
+
+#[repr(C)]
+pub struct LspProjectContainer(c_void);
 
 #[repr(C)]
 pub struct SPackage(c_void);
@@ -32,6 +29,15 @@ pub struct SPackageSettings {
     pub dependency_packages_len: usize,
     pub vni_dest_dir: *const c_char,
     pub allow_experimental: bool,
+}
+
+#[repr(C)]
+pub struct SDiagnostic {
+    pub path: *const c_char,
+    pub message: *const c_char,
+    pub reference_code: u16,
+    pub severity: i32,
+    pub span: SSourceSpan,
 }
 
 unsafe extern "C" {
@@ -61,9 +67,10 @@ unsafe extern "C" {
         contents: *const c_char,
     );
 
-    pub fn Lsp_SymbolInfo(
+    pub fn Lsp_SemanticTokens(
         project_container: *mut LspProjectContainer,
         package: *const SPackage,
         path: *const c_char,
+        semantic_tokens: *const SemanticTokensAccumulator,
     );
 }

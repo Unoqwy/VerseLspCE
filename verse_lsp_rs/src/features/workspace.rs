@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 use std::fs;
 use std::path::PathBuf;
+use std::rc::Rc;
 
 use anyhow::{Context, anyhow};
 use fxhash::FxHashMap;
@@ -73,7 +74,7 @@ impl LanguageServer {
             .text;
 
         for project_container in self.project_containers.iter_mut() {
-            for package in project_container.packages.iter() {
+            for package in project_container.packages.clone() {
                 if path.starts_with(&package.dir_path) {
                     project_container.update_source(&package, &path, &contents);
                 }
@@ -134,12 +135,12 @@ impl LanguageServer {
                 package.read_only,
                 &package.desc.settings,
             );
-            packages.push(SourcePackage {
+            packages.push(Rc::new(SourcePackage {
                 name: package.desc.name.clone(),
                 verse_path: package.desc.settings.verse_path.clone(),
                 dir_path,
                 c_package,
-            });
+            }));
         }
 
         let project_container = ProjectContainer {
@@ -148,8 +149,9 @@ impl LanguageServer {
             vproject_file,
             c_container,
             packages,
-            diagnostics: FxHashMap::default(),
-            stale_diagnostic_uris: HashSet::new(),
+            diagnostics: Default::default(),
+            stale_diagnostic_uris: Default::default(),
+            file_cache: Default::default(),
         };
         self.project_containers.push(project_container);
 
