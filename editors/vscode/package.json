@@ -1,0 +1,66 @@
+{
+    "name": "verse-community-edition",
+    "displayName": "Verse Community Edition",
+    "description": "Complementary Verse language support with more features, built on top of the official compiler",
+    "version": "0.0.1",
+    "license": "MIT",
+    "repository": "https://github.com/Unoqwy/VerseLspCE",
+    "author": "Unoqwy",
+    "publisher": "Unoqwy",
+    "main": "dist/js/extension.js",
+    "engines": {
+        "vscode": "^1.90.0"
+    },
+    "categories": [
+        "Programming Languages"
+    ],
+    "keywords": [
+        "Verse"
+    ],
+    "activationEvents": [
+        "onLanguage:verse"
+    ],
+    "contributes": {
+        "jsonValidation": [
+            {
+                "fileMatch": "*.vproject",
+                "url": "./contrib/schema-vproject.json"
+            }
+        ],
+        "configurationDefaults": {
+            "[verse]": {
+                "editor.semanticHighlighting.enabled": true
+            },
+            "files.associations": {
+                "*.vproject": "json"
+            }
+        },
+        "configuration": {
+            "type": "object",
+            "title": "Verse Community Edition",
+            "properties": {
+                "verseCE.lspBinary": {
+                    "type": "string",
+                    "default": "",
+                    "description": "Custom path to the LSP binary"
+                }
+            }
+        }
+    },
+    "dependencies": {
+        "tmp": "^0.2.5",
+        "vscode-languageclient": "^9.0.1"
+    },
+    "devDependencies": {
+        "@types/node": "^24.10.1",
+        "@types/tmp": "^0.2.6",
+        "@types/vscode": "^1.90.0",
+        "esbuild": "^0.27.0",
+        "typescript": "^5.9.3"
+    },
+    "scripts": {
+        "esbuild-base": "esbuild ./src/extension.ts --bundle --outfile=dist/js/extension.js --external:vscode --format=cjs --platform=node",
+        "build": "npm run esbuild-base",
+        "watch": "npm run esbuild-base -- --sourcemap --watch"
+    }
+}

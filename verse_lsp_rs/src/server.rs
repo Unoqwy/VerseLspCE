@@ -25,11 +25,15 @@ impl LanguageServer {
         }
     }
 
-    #[inline]
     pub fn uri_to_file_path(&self, uri: &Url) -> anyhow::Result<PathBuf> {
         uri.to_file_path()
             .map_err(|_| anyhow!("Text document URI couldn't be mapped to file path: {uri}"))?
             .canonicalize()
             .map_err(|err| err.into())
+    }
+
+    pub fn normalize_uri(&self, uri: &Url) -> anyhow::Result<Url> {
+        Url::from_file_path(self.uri_to_file_path(uri)?)
+            .map_err(|_| anyhow!("Text document path couldn't be mapped to URI: {uri}"))
     }
 }

@@ -1,0 +1,122 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "A Verse project file",
+    "type": "object",
+    "properties": {
+        "packages": {
+            "title": "Packages that are part of the project",
+            "type": "array",
+            "items": {
+                "title": "A package",
+                "$ref": "#/$defs/package"
+            }
+        },
+        "required": [
+            "packages"
+        ]
+    },
+    "$defs": {
+        "package": {
+            "type": "object",
+            "properties": {
+                "desc": {
+                    "title": "Package descriptor",
+                    "$ref": "#/$defs/packageDesc"
+                },
+                "readOnly": {
+                    "title": "Whether this package is read-only",
+                    "type": "boolean"
+                }
+            },
+            "required": [
+                "desc",
+                "readOnly"
+            ],
+            "additionalProperties": false
+        },
+        "packageDesc": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "title": "Package name",
+                    "type": "string"
+                },
+                "dirPath": {
+                    "title": "Package file path",
+                    "type": "string"
+                },
+                "settings": {
+                    "$ref": "#/$defs/packageSettings"
+                }
+            },
+            "required": [
+                "name",
+                "dirPath",
+                "settings"
+            ],
+            "additionalProperties": false
+        },
+        "packageSettings": {
+            "type": "object",
+            "properties": {
+                "versePath": {
+                    "title": "Local Verse path",
+                    "type": "string"
+                },
+                "verseScope": {
+                    "title": "Package scope",
+                    "enum": [
+                        "PublicAPI",
+                        "PublicUser",
+                        "InternalAPI",
+                        "InternalUser"
+                    ]
+                },
+                "role": {
+                    "title": "Package role",
+                    "anyOf": [
+                        {
+                            "const": "Source",
+                            "title": "Local source code"
+                        },
+                        {
+                            "const": "External",
+                            "title": "Import of external files"
+                        }
+                    ]
+                },
+                "verseVersion": {
+                    "title": "Target Verse version",
+                    "type": "integer"
+                },
+                "dependencyPackages": {
+                    "title": "Package dependencies",
+                    "type": "array",
+                    "items": [
+                        {
+                            "title": "Dependency package name",
+                            "type": "string"
+                        }
+                    ]
+                },
+                "vniDestDir": {
+                    "title": "Verse Native Interface destination directory",
+                    "type": "string"
+                },
+                "treatModulesAsImplicit": {
+                    "type": "boolean"
+                },
+                "allowExperimental": {
+                    "type": "boolean"
+                }
+            },
+            "required": [
+                "versePath",
+                "verseScope",
+                "role",
+                "dependencyPackages"
+            ],
+            "additionalProperties": false
+        }
+    }
+}

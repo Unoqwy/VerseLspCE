@@ -1,6 +1,7 @@
 #include "VerseLspCE.hpp"
 
 #include "uLang/Syntax/VstNode.h"
+#include "uLang/Common/Text/FilePathUtils.h"
 
 using namespace Verse;
 using namespace Verse::LspCE;
@@ -121,7 +122,7 @@ extern "C" void Lsp_SemanticTokens(
 ) {
     const Vst::Project& ProjectVst = *ProjectContainer->_BuildManager.GetProjectVst();
 
-    CUTF8String SnippetPath = CUTF8String(Path);
+    CUTF8String SnippetPath = uLang::FilePathUtils::NormalizePath(CUTF8String(Path));
     const Vst::Snippet* SnippetVst = ProjectVst.FindSnippetByFilePath(SnippetPath);
     if (!SnippetVst) {
         fprintf(stderr, "\nCould not find snipppet\n\n");

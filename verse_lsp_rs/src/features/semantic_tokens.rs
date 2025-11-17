@@ -99,6 +99,17 @@ impl LanguageServer {
         &self,
         params: SemanticTokensParams,
     ) -> Result<SemanticTokensFullDeltaResult, ResponseError> {
+        let uri = match self.normalize_uri(&params.text_document.uri) {
+            Ok(uri) => uri,
+            Err(err) => {
+                return Err(ResponseError {
+                    code: ErrorCode::RequestFailed as i32,
+                    message: format!("{err:?}"),
+                    data: None,
+                });
+            }
+        };
+
         let path = self
             .uri_to_file_path(&params.text_document.uri)
             .map_err(|err| ResponseError {
@@ -112,12 +123,8 @@ impl LanguageServer {
         for project_container in self.project_containers.iter() {
             for package in project_container.packages.iter() {
                 if path.starts_with(&package.dir_path) {
-                    semantic_tokens = self.get_semantic_tokens(
-                        project_container,
-                        package,
-                        &params.text_document.uri,
-                        &path_str,
-                    );
+                    semantic_tokens =
+                        self.get_semantic_tokens(project_container, package, &uri, &path_str);
                     break;
 
                     // TODO: Decide how to handle files shared by multiple packages or projects, if ever relevant

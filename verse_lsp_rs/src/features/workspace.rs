@@ -1,9 +1,8 @@
-use std::collections::HashSet;
 use std::fs;
 use std::path::PathBuf;
 use std::rc::Rc;
 
-use anyhow::{Context, anyhow};
+use anyhow::Context;
 use fxhash::FxHashMap;
 use lsp_server::{Message, Notification};
 use lsp_types::notification::{Notification as _, PublishDiagnostics};
@@ -61,11 +60,11 @@ impl LanguageServer {
 
     pub fn handle_notif_document_change(
         &mut self,
-        params: DidChangeTextDocumentParams,
+        change_params: DidChangeTextDocumentParams,
     ) -> anyhow::Result<()> {
-        let path = self.uri_to_file_path(&params.text_document.uri)?;
+        let path = self.uri_to_file_path(&change_params.text_document.uri)?;
 
-        let contents = params
+        let contents = change_params
             .content_changes
             .into_iter()
             .nth(0)
