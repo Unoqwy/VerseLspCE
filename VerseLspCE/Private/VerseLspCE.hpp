@@ -13,8 +13,11 @@ namespace Verse::LspCE {
 using namespace uLang;
 
 struct LspProjectContainer {
-    CProgramBuildManager& _BuildManager;
     TSRef<CSourceProject> _Project;
+
+    CProgramBuildManager& _BuildManager;
+    SProgramContext* _ProgramContext;
+    TSPtr<CSymbolTable> _Symbols;
 };
 
 RsSourceSpan TextRangeToSpan(STextRange Range);

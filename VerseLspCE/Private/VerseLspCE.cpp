@@ -35,8 +35,8 @@ extern "C" LspProjectContainer* Lsp_RegisterProjectContainer(
     BuildManager->SetSourceProject(Project);
 
     LspProjectContainer* ProjectContainer = new LspProjectContainer {
-        ._BuildManager = *BuildManager,
         ._Project = Project,
+        ._BuildManager = *BuildManager,
     };
 
     // NOTE: Arbitrary limit of packages, that if exceeded would cause package pointers to be fucked by regrowth
@@ -68,9 +68,23 @@ extern "C" void Lsp_Build(
 
     CProgramBuildManager& BuildManager = ProjectContainer->_BuildManager;
 
-    BuildManager.ResetSemanticProgram();
+    // NOTE: There is some weird memory corruption happening in _Program after BuildProject
+    //       As a result, accessing _Program->GetSymbols() is unsafe and will segfault
+    //       To work around that, we keep our own RC pointer to the symbols table
+    // TODO: Debug VerseCompiler internals to understand what corrputs _Program
+    ProjectContainer->_Symbols.SetNew();
+
+    const auto NewProgram = TSRef<CSemanticProgram>::New();
+    NewProgram->Initialize(ProjectContainer->_Symbols);
+    NewProgram->PopulateCoreAPI();
+
+    if (ProjectContainer->_ProgramContext) {
+        delete ProjectContainer->_ProgramContext;
+    }
+    ProjectContainer->_ProgramContext = new SProgramContext(NewProgram);
+
     SBuildResults BuildResult = BuildManager.GetToolchain()->BuildProject(
-            *BuildManager.GetSourceProject(), BuildContext, BuildManager.GetProgramContext());
+            *BuildManager.GetSourceProject(), BuildContext, NewProgram);
 
     for (const auto& Glitch : Diagnostics->GetGlitches()) {
         auto Range = Glitch->_Locus._Range;

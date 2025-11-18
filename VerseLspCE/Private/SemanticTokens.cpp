@@ -1,23 +1,33 @@
 #include "VerseLspCE.hpp"
 
-#include "uLang/Syntax/VstNode.h"
 #include "uLang/Common/Text/FilePathUtils.h"
+#include "uLang/Common/Text/Symbol.h"
+#include "uLang/Syntax/VstNode.h"
+#include "uLang/Parser/ReservedSymbols.h"
 
 using namespace Verse;
 using namespace Verse::LspCE;
 
+namespace Verse::LspCE
+{
+
+#define SEMANTIC_RESERVED_SYMBOLS(v) \
+    v(_array, EReservedSymbol::Array) \
+    v(_class, EReservedSymbol::Class) \
 
 class CSemanticTokensVisitor final : public SAstVisitor {
 public:
-    CSemanticTokensVisitor(RsSemanticTokensAccumulator* TokenAccumulator)
-        : _TokenAccumulator(TokenAccumulator) {}
+    CSemanticTokensVisitor(RsSemanticTokensAccumulator* TokenAccumulator, CSymbolTable& Symbols)
+        : _TokenAccumulator(TokenAccumulator)
+        , _ReservedSymbols(Symbols)
+        {}
 
     virtual void Visit(const char* /*FieldName*/, CAstNode& AstNode) override {
         VisitElement(AstNode);
     }
 
     virtual void VisitElement(CAstNode& AstNode) override {
-        // fprintf(stderr, "NODE %s \n", GetAstNodeTypeInfo(AstNode.GetNodeType())._EnumeratorName);
+        fprintf(stderr, "NODE %s \n", GetAstNodeTypeInfo(AstNode.GetNodeType())._EnumeratorName);
 
         const Vst::Node* VstNode;
         RsSemanticTokenKind OutTokenKind;
@@ -27,6 +37,9 @@ public:
         case EAstNodeType::Identifier_Module:
         case EAstNodeType::Identifier_ModuleAlias:
             OutTokenKind = RsSemanticTokenKind::NAMESPACE;
+            break;
+        case EAstNodeType::Identifier_BuiltInMacro:
+            OutTokenKind = RsSemanticTokenKind::MACRO;
             break;
         case EAstNodeType::Identifier_Enum:
             OutTokenKind = RsSemanticTokenKind::ENUM;
@@ -48,20 +61,19 @@ public:
         case EAstNodeType::Literal_Number:
             OutTokenKind = RsSemanticTokenKind::NUMBER;
             break;
+        case EAstNodeType::MacroCall:
+            VisitMacroCall(static_cast<CExprMacroCall&>(AstNode));
+            return;
         default:
-            goto continue_visit;
+            goto visit_all;
         }
 
         VstNode = AstNode.GetMappedVstNode();
         if (VstNode) {
-            RsSemanticTokenEntry TokenEntry = {
-                ._TokenKind = OutTokenKind,
-                ._Span = TextRangeToSpan(VstNode->Whence()),
-            };
-            RS_AddSemanticToken(_TokenAccumulator, TokenEntry);
+            EmitToken(VstNode, OutTokenKind);
         }
 
-    continue_visit:
+    visit_all:
         VisitAll(AstNode);
     }
 
@@ -71,13 +83,50 @@ public:
     }
 
 private:
+    void VisitMacroCall(const CExprMacroCall& MacroCall) {
+        const auto& MacroIdentifier = static_cast<CExprIdentifierBuiltInMacro&>(*MacroCall.Name());
+        const CSymbol MacroSymbol = MacroIdentifier._Symbol;
+
+        fprintf(stderr, "Macro symbol : %s\n", MacroSymbol.AsCString());
+    }
+
+private:
     RsSemanticTokensAccumulator* _TokenAccumulator;
+
+    void EmitToken(const Vst::Node* OriginNode, RsSemanticTokenKind TokenKind) {
+        RsSemanticTokenEntry TokenEntry = {
+            ._TokenKind = TokenKind,
+            ._Span = TextRangeToSpan(OriginNode->Whence()),
+        };
+        RS_AddSemanticToken(_TokenAccumulator, TokenEntry);
+    }
+
+    void EmitToken(const CAstNode& OriginAstNode, RsSemanticTokenKind TokenKind) {
+        const Vst::Node* VstNode = OriginAstNode.GetMappedVstNode();
+        if (VstNode) {
+            EmitToken(VstNode, TokenKind);
+        }
+    }
+
+    struct SReservedSymbols {
+        SReservedSymbols(CSymbolTable& Symbols) {
+        #define VISIT_SYMBOL(FieldName, Enum) FieldName = Symbols.AddChecked(GetReservedSymbol(Enum));
+            SEMANTIC_RESERVED_SYMBOLS(VISIT_SYMBOL)
+        #undef VISIT_SYMBOL
+        }
+
+    #define VISIT_SYMBOL(FieldName, Enum) CSymbol FieldName;
+        SEMANTIC_RESERVED_SYMBOLS(VISIT_SYMBOL)
+    #undef VISIT_SYMBOL
+    } _ReservedSymbols;
 };
 
 class CVstSemanticTokensVisitor final {
 public:
-    CVstSemanticTokensVisitor(RsSemanticTokensAccumulator* TokenAccumulator)
-        : _TokenAccumulator(TokenAccumulator) {}
+    CVstSemanticTokensVisitor(RsSemanticTokensAccumulator* TokenAccumulator, bool bAstFallback)
+        : _TokenAccumulator(TokenAccumulator)
+        , _bAstFallback(bAstFallback)
+        {}
 
     void Visit(const Vst::Node& Node) {
         RsSemanticTokenKind OutTokenKind;
@@ -86,17 +135,29 @@ public:
         case Vst::NodeType::Comment:
             OutTokenKind = RsSemanticTokenKind::COMMENT;
             break;
+        case Vst::NodeType::Macro: {
+            const Vst::Macro& MacroNode = Node.As<Vst::Macro>();
+
+            if (const Vst::Identifier* MacroIdentifier = MacroNode.GetName()->AsNullable<Vst::Identifier>()) {
+                const CUTF8String& MacroName = MacroIdentifier->GetSourceText();
+
+                if (MacroName == "class") {
+                    OutTokenKind = RsSemanticTokenKind::KEYWORD;
+                } else if (_bAstFallback) {
+                    OutTokenKind = RsSemanticTokenKind::MACRO;
+                } else {
+                    goto continue_visit;
+                }
+
+                EmitToken(*MacroIdentifier, OutTokenKind);
+            }
+            goto continue_visit;
+        }
         default:
             goto continue_visit;
         }
 
-    {
-        RsSemanticTokenEntry TokenEntry = {
-            ._TokenKind = OutTokenKind,
-            ._Span = TextRangeToSpan(Node.Whence()),
-        };
-        RS_AddSemanticToken(_TokenAccumulator, TokenEntry);
-    }
+        EmitToken(Node, OutTokenKind);
 
     continue_visit:
         for (const auto& Child : Node.GetPrefixComments()) {
@@ -112,7 +173,19 @@ public:
 
 private:
     RsSemanticTokensAccumulator* _TokenAccumulator;
+
+    bool _bAstFallback;
+
+    void EmitToken(const Vst::Node& OriginNode, RsSemanticTokenKind TokenKind) {
+        RsSemanticTokenEntry TokenEntry = {
+            ._TokenKind = TokenKind,
+            ._Span = TextRangeToSpan(OriginNode.Whence()),
+        };
+        RS_AddSemanticToken(_TokenAccumulator, TokenEntry);
+    }
 };
+
+} // namespace Verse::LspCE
 
 extern "C" void Lsp_SemanticTokens(
     LspProjectContainer* ProjectContainer,
@@ -129,12 +202,17 @@ extern "C" void Lsp_SemanticTokens(
         return;
     }
 
-    CVstSemanticTokensVisitor VstVisitor(TokenAccumulator);
-    VstVisitor.Visit(*SnippetVst);
-
     const CAstNode* AstNode = SnippetVst->GetMappedAstNode();
     if (AstNode) {
-        CSemanticTokensVisitor AstVisitor(TokenAccumulator);
+        CVstSemanticTokensVisitor VstVisitor(TokenAccumulator, false);
+        VstVisitor.Visit(*SnippetVst);
+
+        CSemanticTokensVisitor AstVisitor(TokenAccumulator, *ProjectContainer->_Symbols);
         AstVisitor.VisitAll(*AstNode);
+    } else {
+        // TODO: Remove the fallback because Ast always seem to parse if Vst does
+        //       Not sure what to do about the "down" time of syntax pass. May just be a flaw of using the compiler..
+        CVstSemanticTokensVisitor VstVisitor(TokenAccumulator, true);
+        VstVisitor.Visit(*SnippetVst);
     }
 }
