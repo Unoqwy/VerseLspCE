@@ -56,7 +56,7 @@ extern "C" void Lsp_Build(
 
     SBuildParams BuildParams = {
         ._MaxNumPersistentVars = 2,
-        ._MaxNumConcreteProductSubclasses = 100,
+        ._MaxNumConcreteEntitlementSubclasses = 100,
         ._bSemanticAnalysisOnly = true,
         ._bGenerateDigests = false,
         ._bGenerateCode = false,
