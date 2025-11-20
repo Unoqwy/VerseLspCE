@@ -29,6 +29,8 @@ pub struct PackageSettings {
     #[serde(default = "PackageRole::source")]
     pub role: PackageRole,
     pub verse_version: Option<u32>,
+    #[serde(rename = "uploadedAtFNVersion")]
+    pub fortnite_version: Option<u32>,
     #[serde(default)]
     pub treat_modules_as_implicit: bool,
     pub dependency_packages: Vec<String>,

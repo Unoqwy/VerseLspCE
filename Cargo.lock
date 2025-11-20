@@ -642,6 +642,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "crossbeam-channel",
  "enum-iterator",
  "fxhash",
  "ignore",

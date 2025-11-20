@@ -1,5 +1,4 @@
 use enum_iterator::Sequence;
-use lsp_server::{ErrorCode, ResponseError};
 use lsp_types::*;
 
 use crate::{
@@ -98,25 +97,10 @@ impl LanguageServer {
     pub fn handle_req_semantic_tokens_full(
         &self,
         params: SemanticTokensParams,
-    ) -> Result<SemanticTokensFullDeltaResult, ResponseError> {
-        let uri = match self.normalize_uri(&params.text_document.uri) {
-            Ok(uri) => uri,
-            Err(err) => {
-                return Err(ResponseError {
-                    code: ErrorCode::RequestFailed as i32,
-                    message: format!("{err:?}"),
-                    data: None,
-                });
-            }
-        };
+    ) -> anyhow::Result<SemanticTokensFullDeltaResult> {
+        let uri = self.normalize_uri(&params.text_document.uri)?;
 
-        let path = self
-            .uri_to_file_path(&params.text_document.uri)
-            .map_err(|err| ResponseError {
-                code: ErrorCode::RequestFailed as i32,
-                message: format!("{err:?}"),
-                data: None,
-            })?;
+        let path = self.uri_to_file_path(&params.text_document.uri)?;
         let path_str = path.to_string_lossy();
 
         let mut semantic_tokens = vec![];
@@ -174,7 +158,9 @@ impl LanguageServer {
             let Some((start, end)) = span_source.span_to_byte_offsets(&entry.span) else {
                 continue;
             };
-            let length = end - start;
+
+            // TODO: Evaluate actual chars length by having src text
+            let length = end - start - (entry.span.end_row - entry.span.begin_row);
 
             let line = entry.span.begin_row;
             let col = entry.span.begin_col;

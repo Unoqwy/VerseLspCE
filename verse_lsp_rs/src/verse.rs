@@ -44,6 +44,8 @@ pub struct ProjectContainer {
     pub stale_diagnostic_uris: HashSet<Url>,
 
     pub file_cache: FxHashMap<Url, FileState>,
+
+    pub needs_build: bool,
 }
 
 #[derive(Debug)]
@@ -99,6 +101,7 @@ impl ProjectContainer {
             format!("Build project {}", &self.vproject_uri.as_str()),
             crate::build(&self.c_container, &mut diagnostic_acc);
         };
+        self.needs_build = false;
 
         let mut stale_diagnostic_uris = HashSet::with_capacity(self.diagnostics.len());
         stale_diagnostic_uris.extend(self.diagnostics.keys().cloned());

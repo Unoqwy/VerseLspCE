@@ -27,7 +27,7 @@ public:
     }
 
     virtual void VisitElement(CAstNode& AstNode) override {
-        fprintf(stderr, "NODE %s \n", GetAstNodeTypeInfo(AstNode.GetNodeType())._EnumeratorName);
+        // fprintf(stderr, "NODE %s \n", GetAstNodeTypeInfo(AstNode.GetNodeType())._EnumeratorName);
 
         const Vst::Node* VstNode;
         RsSemanticTokenKind OutTokenKind;
@@ -141,7 +141,28 @@ public:
             if (const Vst::Identifier* MacroIdentifier = MacroNode.GetName()->AsNullable<Vst::Identifier>()) {
                 const CUTF8String& MacroName = MacroIdentifier->GetSourceText();
 
-                if (MacroName == "class") {
+                if (
+                   MacroName == "using"
+
+                || MacroName == "module"
+                || MacroName == "class"
+                || MacroName == "struct"
+                || MacroName == "enum"
+                || MacroName == "interface"
+
+                || MacroName == "for"
+                || MacroName == "loop"
+                || MacroName == "case"
+
+                || MacroName == "external"
+                || MacroName == "profile"
+
+                || MacroName == "branch"
+                || MacroName == "spawn"
+                || MacroName == "sync"
+                || MacroName == "race"
+                || MacroName == "rush"
+                ) {
                     OutTokenKind = RsSemanticTokenKind::KEYWORD;
                 } else if (_bAstFallback) {
                     OutTokenKind = RsSemanticTokenKind::MACRO;

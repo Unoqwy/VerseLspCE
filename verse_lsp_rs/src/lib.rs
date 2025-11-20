@@ -13,8 +13,6 @@ use simple_logger::SimpleLogger;
 mod entrypoint;
 mod features;
 mod ffi;
-mod notifications;
-mod requests;
 mod server;
 pub mod utils;
 mod verse;
@@ -145,6 +143,7 @@ pub fn register_package(
         role: settings.role as u8,
         explicit_verse_version: settings.verse_version.is_some(),
         verse_version: settings.verse_version.unwrap_or(0),
+        fortnite_version: settings.fortnite_version.unwrap_or(0),
         treat_modules_as_implicit: settings.treat_modules_as_implicit,
         dependency_packages: c_dependency_packages.as_ptr(),
         dependency_packages_len: settings.dependency_packages.len(),

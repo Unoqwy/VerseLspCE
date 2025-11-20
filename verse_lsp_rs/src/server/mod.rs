@@ -4,8 +4,16 @@ use lsp_server::Connection;
 use lsp_types::{Url, WorkspaceFolder};
 
 use anyhow::anyhow;
+use serde::{Deserialize, Serialize};
 
-use crate::verse::ProjectContainer;
+use crate::{server::messages::MessageQueue, verse::ProjectContainer};
+
+pub mod messages;
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+pub struct VerseLspCESettings {
+    pub fortnite_version: Option<u32>,
+}
 
 pub struct LanguageServer {
     /// LSP connection.
@@ -14,14 +22,25 @@ pub struct LanguageServer {
     pub workspace_folders: Vec<WorkspaceFolder>,
     /// Each .vproject file gets its own project container, aka. server workspace.
     pub project_containers: Vec<ProjectContainer>,
+
+    /// Messages to process in message loop.
+    pub message_queue: Arc<MessageQueue>,
+
+    pub settings: VerseLspCESettings,
 }
 
 impl LanguageServer {
-    pub fn new(connection: Arc<Connection>) -> Self {
+    pub fn new(
+        connection: Arc<Connection>,
+        message_queue: Arc<MessageQueue>,
+        settings: VerseLspCESettings,
+    ) -> Self {
         Self {
             connection,
             workspace_folders: vec![],
             project_containers: vec![],
+            message_queue,
+            settings,
         }
     }
 

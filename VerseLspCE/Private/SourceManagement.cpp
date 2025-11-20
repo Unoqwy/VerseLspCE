@@ -35,6 +35,7 @@ struct FFI_PackageSettings {
     EPackageRole _Role;
     bool _ExplicitVerseVersion;
     uint32_t _VerseVersion;
+    uint32_t _FortniteVersion;
     bool _bTreatModulesAsImplicit;
     char** _DependencyPackages;
     size_t _DependencyPackagesLen;
@@ -64,6 +65,9 @@ extern "C" const CSourceProject::SPackage* Lsp_RegisterPackage(
     };
     if (Settings._ExplicitVerseVersion) {
         PackageSettings._VerseVersion = uLang::TOptional(Settings._VerseVersion);
+    }
+    if (Settings._FortniteVersion > 0) {
+        PackageSettings._UploadedAtFNVersion = uLang::TOptional(Settings._FortniteVersion);
     }
     if (Settings._VniDestDir) {
         PackageSettings._VniDestDir = uLang::TOptional(CUTF8String(Settings._VniDestDir));

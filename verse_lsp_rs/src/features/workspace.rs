@@ -27,7 +27,7 @@ pub fn capabilities_workspace_folders() -> WorkspaceServerCapabilities {
 }
 
 impl LanguageServer {
-    pub fn handle_notif_workspace_folders_change(
+    pub fn handle_did_workspace_folders_change(
         &mut self,
         params: DidChangeWorkspaceFoldersParams,
     ) -> anyhow::Result<()> {
@@ -58,7 +58,7 @@ impl LanguageServer {
         Ok(())
     }
 
-    pub fn handle_notif_document_change(
+    pub fn handle_did_document_change(
         &mut self,
         change_params: DidChangeTextDocumentParams,
     ) -> anyhow::Result<()> {
@@ -79,10 +79,8 @@ impl LanguageServer {
                 }
             }
 
-            project_container.build();
+            project_container.needs_build = true;
         }
-
-        self.publish_diagnostics();
 
         Ok(())
     }
@@ -127,12 +125,18 @@ impl LanguageServer {
             let Ok(dir_path) = PathBuf::from(&package.desc.dir_path).canonicalize() else {
                 continue;
             };
+
+            let mut package_settings = package.desc.settings.clone();
+            if package_settings.fortnite_version.is_none() {
+                package_settings.fortnite_version = self.settings.fortnite_version;
+            }
+
             let c_package = crate::register_package(
                 &c_container,
                 package.desc.name.as_str(),
                 package.desc.dir_path.as_str(),
                 package.read_only,
-                &package.desc.settings,
+                &package_settings,
             );
             packages.push(Rc::new(SourcePackage {
                 name: package.desc.name.clone(),
@@ -151,6 +155,7 @@ impl LanguageServer {
             diagnostics: Default::default(),
             stale_diagnostic_uris: Default::default(),
             file_cache: Default::default(),
+            needs_build: false,
         };
         self.project_containers.push(project_container);
 
@@ -159,7 +164,7 @@ impl LanguageServer {
         project_container.build();
     }
 
-    fn publish_diagnostics(&mut self) {
+    pub fn publish_diagnostics(&mut self) {
         let mut all_diagnostics = FxHashMap::default();
         for project_container in self.project_containers.iter_mut() {
             if !project_container.stale_diagnostic_uris.is_empty() {

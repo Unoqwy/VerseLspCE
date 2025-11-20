@@ -24,6 +24,7 @@ pub struct SPackageSettings {
     pub role: u8,
     pub explicit_verse_version: bool,
     pub verse_version: u32,
+    pub fortnite_version: u32, // 0 = Latest
     pub treat_modules_as_implicit: bool,
     pub dependency_packages: *const *const c_char,
     pub dependency_packages_len: usize,
